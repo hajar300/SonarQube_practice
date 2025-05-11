@@ -2,13 +2,12 @@ pipeline {
     agent any
 
     tools {
-        jdk 'jdk-11'       // Doit correspondre au nom défini dans Jenkins > Global Tool Configuration
-        maven 'Maven3'     // Idem ici pour Maven
+        jdk 'jdk-11'       // Nom défini dans Jenkins > Global Tool Configuration
+        maven 'Maven3'     // Nom défini dans Jenkins > Global Tool Configuration
     }
 
     environment {
-        // Configuration de SonarQube (assure-toi que le nom correspond à celui dans Jenkins > Manage Jenkins > Configure System)
-        SONARQUBE_ENV = 'SonarQube'
+        SONARQUBE_ENV = 'SonarQube'   // Nom du serveur SonarQube configuré dans Jenkins
     }
 
     stages {
@@ -20,8 +19,10 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('SonarQube') {
-                    sh 'mvn clean install sonar:sonar'
+                withSonarQubeEnv("${SONARQUBE_ENV}") {
+                    withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                        sh 'mvn clean install sonar:sonar -Dsonar.login=$SONAR_TOKEN'
+                    }
                 }
             }
         }
@@ -29,7 +30,6 @@ pipeline {
 
     post {
         always {
-            // Ignore l'erreur si aucun rapport n'existe
             catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
                 junit '**/target/surefire-reports/*.xml'
             }
