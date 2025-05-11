@@ -1,34 +1,38 @@
 pipeline {
-    agent any  // Utiliser un agent pour exécuter le pipeline (peut être un serveur Jenkins ou local)
+    agent any
 
     tools {
-        jdk 'jdk-11'  // Utiliser le JDK 11 configuré dans Jenkins
-        maven 'Maven3'  // Assurez-vous que Maven est installé et configuré dans Jenkins
+        jdk 'jdk-11'       // Doit correspondre au nom défini dans Jenkins > Global Tool Configuration
+        maven 'Maven3'     // Idem ici pour Maven
+    }
+
+    environment {
+        // Configuration de SonarQube (assure-toi que le nom correspond à celui dans Jenkins > Manage Jenkins > Configure System)
+        SONARQUBE_ENV = 'SonarQube'
     }
 
     stages {
-        // Étape 1 : Checkout du code depuis GitHub
         stage('Checkout') {
             steps {
-                git 'https://github.com/hajar300/SonarQube_practice.git'  // URL du dépôt Git
+                git branch: 'main', url: 'https://github.com/hajar300/SonarQube_practice.git'
             }
         }
 
-        // Étape 2 : Compilation du projet
-        stage('Build') {
+        stage('SonarQube Analysis') {
             steps {
-                script {
-                    // Utiliser Maven pour construire le projet et exécuter SonarQube
-                    sh 'mvn clean install sonar:sonar'  // Commande pour construire et analyser le code avec SonarQube
+                withSonarQubeEnv('SonarQube') {
+                    sh 'mvn clean install sonar:sonar'
                 }
             }
         }
     }
 
     post {
-        // Cette section est exécutée après la construction
         always {
-            junit '**/target/test-*.xml'  // Récupérer les résultats des tests (si disponibles)
+            // Ignore l'erreur si aucun rapport n'existe
+            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                junit '**/target/surefire-reports/*.xml'
+            }
         }
     }
 }
